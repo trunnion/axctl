@@ -6,6 +6,7 @@ edition = "2018"
 repository = "https://github.com/trunnion/axctl/"
 license = "MIT OR Apache-2.0"
 keywords = ["axis", "vapix"]
+description = "A command line interface for AXIS Communications devices."
 
 # Cargo.toml reference: https://doc.rust-lang.org/cargo/reference/manifest.html
 
