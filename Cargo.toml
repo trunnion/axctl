@@ -1,0 +1,29 @@
+[package]
+name = "axctl"
+version = "0.1.0"
+authors = ["Will Glynn <will@willglynn.com>"]
+edition = "2018"
+repository = "https://github.com/trunnion/axctl/"
+license = "MIT OR Apache-2.0"
+keywords = ["axis", "vapix"]
+
+# Cargo.toml reference: https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "3.0.0-beta.2", features = ["derive","suggestions"] }
+crossterm = { version = "0.18", features = ["event-stream"] }
+deflate = { version = "0.8", features = ["gzip"] }
+futures = "0.3"
+http = "0.2"
+hyper = "0.13"
+openssl = "0.10"
+rand = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tar = "0.4"
+thiserror = "1.0"
+toml = "0.5"
+tokio = { version = "0.2", features = ["blocking", "io-std", "tcp", "time", "rt-threaded"] }
+tokio-openssl = "0.4"
+uuid = { version = "0.8.1", features = ["serde", "v4"] }
+vapix = "0.1"
