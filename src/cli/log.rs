@@ -12,9 +12,6 @@ use vapix::v3::system_log::{self, *};
 /// Print the system log
 #[derive(Debug, Clap)]
 pub struct Log {
-    /// The camera URL, formatted as http://user:pass@1.2.3.4/
-    camera_url: http::uri::Uri,
-
     /// Print at most this many lines
     #[clap(short, long)]
     number: Option<usize>,
@@ -29,7 +26,7 @@ pub enum Error {
     #[error("error writing to terminal: {0}")]
     TerminalError(#[from] crossterm::ErrorKind),
     #[error("error communicating with camera via VAPIX: {0}")]
-    VapixError(#[from] vapix::Error<hyper::Error>),
+    VapixError(#[from] vapix::Error),
 }
 
 struct Fields {
@@ -189,18 +186,15 @@ impl<'a> Entries<'a> {
 
 impl Log {
     pub async fn invoke(&self, context: &mut Context) -> Result<(), Error> {
-        // Make a VAPIX device to talk with the camera
-        let device = vapix::Device::new(
-            vapix::hyper::HyperTransport::default(),
-            self.camera_url.clone(),
-        );
+        let client = context.client();
+        let system_log = client.system_log();
 
         let mut number = self.number;
         let mut previous = None;
 
         loop {
             // Get the log
-            let buffer = device.system_log().entries().await?;
+            let buffer = system_log.entries().await?;
             let fields = Fields {
                 timestamp: true,
                 hostname: false,

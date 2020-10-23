@@ -5,6 +5,7 @@ use std::borrow::Borrow;
 use std::future::Future;
 use std::io::Write;
 
+mod app;
 mod log;
 mod shell;
 
@@ -20,6 +21,8 @@ struct Args {
 
 #[derive(Debug, Clap)]
 enum Subcommand {
+    #[clap(alias = "apps")]
+    App(app::App),
     #[clap(aliases = &["tail","logs","syslog"])]
     Log(log::Log),
     Shell(shell::Shell),
@@ -34,6 +37,10 @@ pub struct GlobalOptions {
     /// Print less information
     #[clap(short, long)]
     quiet: bool,
+
+    /// The device URL including credentials, i.e. http://user:pass@1.2.3.4/
+    #[clap(short, long, env = "DEVICE_URL", value_hint = clap::ValueHint::Url)]
+    device_url: http::uri::Uri,
 }
 
 #[derive(Debug)]
@@ -56,6 +63,13 @@ impl Context {
             is_tty,
             global_options,
         }
+    }
+
+    pub fn client(&self) -> vapix::Client<vapix::HyperTransport> {
+        vapix::Client::new(
+            vapix::HyperTransport::default(),
+            self.global_options.device_url.clone(),
+        )
     }
 
     pub fn output<O: Output, V: Borrow<O>>(
@@ -100,6 +114,7 @@ pub fn main() {
     let mut context = Context::new(global_options);
 
     match subcommand {
+        Subcommand::App(c) => run(c.invoke(&mut context)),
         Subcommand::Log(c) => run(c.invoke(&mut context)),
         Subcommand::Shell(c) => run(c.invoke(&mut context)),
     }

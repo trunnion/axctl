@@ -21,10 +21,7 @@ mod start_package;
 /// Run an interactive shell on an AXIS camera
 #[derive(Debug, Clap)]
 pub struct Shell {
-    /// The camera URL, formatted as http://user:pass@1.2.3.4/
-    camera_url: http::uri::Uri,
-
-    /// The camera-side port on which to establish a shell-over-SSL connection
+    /// The remote port on which to establish a shell-over-SSL connection
     #[clap(short, long)]
     port: Option<u16>,
 }
@@ -190,10 +187,10 @@ pub enum Error {
     HostnameResolutionError(String, std::io::Error),
     #[error("error probing {0}: {1}")]
     ProbeError(SocketAddr, std::io::Error),
-    #[error("device not supported")]
-    DeviceNotSupported,
+    #[error("device does not support application uploads")]
+    DeviceDoesNotSupportApplicationUploads,
     #[error("error communicating with camera via VAPIX: {0}")]
-    VapixError(vapix::Error<hyper::Error>),
+    VapixError(vapix::Error),
     #[error("failed to start remote shell, check device logs for detail")]
     ShellFailedToStart,
     #[error("failed to connect to remote shell, check device logs for detail: {0}")]
@@ -222,29 +219,26 @@ impl Shell {
         let port = self.port.unwrap_or_else(|| choose_port());
 
         // Resolve the hostname
-        let hostname = self
-            .camera_url
+        let hostname = context
+            .global_options
+            .device_url
             .host()
-            .expect("URL must have a host component");
-        let shell_addr = (hostname, port)
+            .expect("URL must have a host component")
+            .to_owned();
+        let shell_addr = (hostname.as_ref(), port)
             .to_socket_addrs()
-            .map_err(|e| Error::HostnameResolutionError(hostname.to_owned(), e))?
+            .map_err(|e| Error::HostnameResolutionError(hostname.clone(), e))?
             .next()
             .expect("name resolution produced no addresses");
 
-        // Make a VAPIX device to talk with the camera
-        let device = vapix::Device::new(
-            vapix::hyper::HyperTransport::default(),
-            self.camera_url.clone(),
-        );
-
         // Get the VAPIX applications interface
         // (This also verifies our connectivity, our credentials, etc.)
-        let applications = device
+        let client = context.client();
+        let applications = client
             .applications()
             .await
             .map_err(Error::VapixError)?
-            .ok_or(Error::DeviceNotSupported)?;
+            .ok_or(Error::DeviceDoesNotSupportApplicationUploads)?;
 
         // Indicate we're about to start
         context.output(StartMessage { id, shell_addr })?;
@@ -300,7 +294,7 @@ impl Shell {
             config.set_verify_hostname(false);
 
             // Do the handshake
-            tokio_openssl::connect(config, hostname, conn)
+            tokio_openssl::connect(config, &hostname, conn)
                 .await
                 .map_err(|e| Error::TlsHandshakeFailed(e.to_string()))?
         };
